@@ -34,6 +34,11 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 USER app
 WORKDIR /app
+
+# Migrations run from the container: alembic upgrade head
+COPY --chown=app:app alembic.ini ./
+COPY --chown=app:app migrations ./migrations
+
 EXPOSE 8000
 
 CMD ["uvicorn", "footnotes.app:app", "--host", "0.0.0.0", "--port", "8000"]

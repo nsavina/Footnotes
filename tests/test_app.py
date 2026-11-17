@@ -2,11 +2,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from footnotes.app import app
+from footnotes.db import get_session
 
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client
+    app.dependency_overrides.clear()
 
 
 def test_root_redirects_to_docs(client):
@@ -15,10 +18,26 @@ def test_root_redirects_to_docs(client):
     assert response.headers["location"] == "/docs"
 
 
-def test_health(client):
+def test_health_with_database(client):
+    """Needs PostgreSQL running: make db"""
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "database": "ok"}
+
+
+def test_health_reports_unavailable_database(client):
+    class BrokenSession:
+        async def execute(self, *args, **kwargs):
+            raise OSError("connection refused")
+
+    async def broken_session():
+        yield BrokenSession()
+
+    app.dependency_overrides[get_session] = broken_session
+
+    response = client.get("/health")
+    assert response.status_code == 503
+    assert response.json() == {"status": "error", "database": "unavailable"}
 
 
 def test_hello_default(client):

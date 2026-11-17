@@ -1,4 +1,4 @@
-.PHONY: help install run dev test clean docker-build docker-run
+.PHONY: help install run dev test db db-down migrate migration docker-build docker-run clean
 
 help: ## Show available commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -15,11 +15,23 @@ dev: ## Run the API with auto-reload on http://localhost:8000
 test: ## Run tests
 	uv run pytest
 
+db: ## Start PostgreSQL in Docker (in the background)
+	docker compose up -d --wait db
+
+db-down: ## Stop Docker containers (database data is kept)
+	docker compose down
+
+migrate: ## Apply database migrations
+	uv run alembic upgrade head
+
+migration: ## Create a migration from model changes: make migration m="add users"
+	uv run alembic revision --autogenerate -m "$(m)"
+
 docker-build: ## Build the Docker image
 	docker build -t footnotes .
 
-docker-run: ## Run the Docker image on http://localhost:8000
-	docker run --rm -p 8000:8000 footnotes
+docker-run: ## Run API + PostgreSQL in Docker on http://localhost:8000
+	docker compose up --build
 
 clean: ## Remove .venv and caches
 	rm -rf .venv .pytest_cache

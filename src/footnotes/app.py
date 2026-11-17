@@ -1,9 +1,26 @@
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Annotated
+
+from fastapi import Depends, FastAPI
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from footnotes import greet
+from footnotes.db import engine, get_session
 
-app = FastAPI(title="Footnotes")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(title="Footnotes", lifespan=lifespan)
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 @app.get("/", include_in_schema=False)
@@ -12,8 +29,15 @@ def root() -> RedirectResponse:
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+async def health(session: SessionDep) -> JSONResponse:
+    try:
+        await session.execute(text("SELECT 1"))
+    except (SQLAlchemyError, OSError):
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "database": "unavailable"},
+        )
+    return JSONResponse(content={"status": "ok", "database": "ok"})
 
 
 @app.get("/hello")
