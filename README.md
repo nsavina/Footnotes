@@ -29,6 +29,8 @@ Then open http://localhost:8000/docs for the interactive API docs.
 | `make dev`     | Run the API on http://localhost:8000 with reload |
 | `make run`     | Run the CLI entry point (prints a greeting)   |
 | `make test`    | Run the test suite                            |
+| `make docker-build` | Build the Docker image `footnotes`       |
+| `make docker-run`   | Run the image on http://localhost:8000   |
 | `make clean`   | Remove `.venv` and caches                     |
 | `make help`    | List all commands                             |
 
